@@ -30,3 +30,11 @@ def record_audio(file_name, sr=44100, channels=2):
         print(f"Saved to {filename}")
     else:
         print("No audio recorded.")
+
+
+    def save_to_csv(data, file_name):
+
+        with open(file_name, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerows(data)
+        print(f"Saved to {file_name}")\:
