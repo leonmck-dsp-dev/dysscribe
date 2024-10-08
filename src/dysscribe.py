@@ -1,194 +1,162 @@
-# gui.py
 
-import tkinter as tk
-from tkinter import messagebox, ttk
+
 import backend as bk  # Import your backend module
-import csv
-import os
+import sounddevice as sd
 
-class RecordingApp:
-    def __init__(self, master):
-        self.master = master
-        master.title("Recording Application")
+import sys
 
-        # Initialize variables
-        self.severity = tk.StringVar()
-        self.type_ = tk.StringVar()
-        self.condition = tk.StringVar()
-        self.device_index = tk.IntVar()
-        self.phrase_index = 0
-        self.take = 1
-        self.speakerID = None
-        self.selected_phrases = []
-        self.base_path = "data"
-        self.recsdir = os.path.join(self.base_path, 'recordings')
-        self.csv_path = os.path.join(self.base_path, 'metadata.csv')
-        self.device_list = []
+from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QLineEdit, QVBoxLayout, QWidget, QFileDialog, QComboBox, QLabel 
 
-        # Create directories if they don't exist
-        os.makedirs(self.recsdir, exist_ok=True)
 
-        # Predefined options
-        self.severity_options = ["Mild", "Moderate", "Severe"]
-        self.type_options = ["Type A", "Type B", "Type C"]
-        self.condition_options = ["Condition X", "Condition Y", "Condition Z"]
+#  reqiurements of the app
 
-        self.all_phrases = [
-            "Hello, my name is John.",
-            "I am a student at the University of Toronto.",
-            "I am studying computer science.",
-            "I am in my fourth year.",
-            "I am from Toronto.",
-            "I am interested in machine learning.",
-            "I am looking for a job in software development.",
-            "I am excited to graduate.",
-            "I am looking forward to the future.",
-            "I am happy to be here."
-        ]
+# take input from user for speaker id, severity, type, condition as text
+# select input device from the list of available devices
+# start recording 
+# select dataset path
+# display the phrase to be spoken in a separate window
 
-        # Set up the GUI layout
-        self.create_widgets()
+class audioWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Audio")
+        self.setFixedSize(QSize(400, 200))
+        self.layout = QVBoxLayout() 
+        self.combo = QComboBox() 
+        self.combo.addItem("Select Device")
+        self.populate_input_devices()
+        self.layout.addWidget(self.combo)
+        self.widget = QWidget()
+        self.widget.setLayout(self.layout)
+        self.setCentralWidget(self.widget)
+        self.deviceIndex = self.select_input_device()  # Moved this line to after self.combo is defined
 
-    def create_widgets(self):
-        # Dropdown menus for severity, type, and condition
-        tk.Label(self.master, text="Severity:").grid(row=0, column=0, sticky='e')
-        self.severity_menu = ttk.Combobox(self.master, textvariable=self.severity, values=self.severity_options, state='readonly')
-        self.severity_menu.grid(row=0, column=1)
+    def populate_input_devices(self):
+        devices = sd.query_devices()
+        input_devices = [f"{idx}: {device['name']}" for idx, device in enumerate(devices) if device['max_input_channels'] > 0]
+        self.combo.addItems(input_devices)
 
-        tk.Label(self.master, text="Type:").grid(row=1, column=0, sticky='e')
-        self.type_menu = ttk.Combobox(self.master, textvariable=self.type_, values=self.type_options, state='readonly')
-        self.type_menu.grid(row=1, column=1)
-
-        tk.Label(self.master, text="Condition:").grid(row=2, column=0, sticky='e')
-        self.condition_menu = ttk.Combobox(self.master, textvariable=self.condition, values=self.condition_options, state='readonly')
-        self.condition_menu.grid(row=2, column=1)
-
-        # Listbox for phrases selection
-        tk.Label(self.master, text="Select Phrases:").grid(row=3, column=0, columnspan=2)
-        self.phrases_listbox = tk.Listbox(self.master, selectmode=tk.MULTIPLE, width=50, height=10)
-        self.phrases_listbox.grid(row=4, column=0, columnspan=2, padx=5, pady=5)
-        for phrase in self.all_phrases:
-            self.phrases_listbox.insert(tk.END, phrase)
-
-        # Button to select input device
-        tk.Button(self.master, text="Select Input Device", command=self.select_device).grid(row=5, column=0, columnspan=2)
-
-        # Start recording button
-        tk.Button(self.master, text="Start Recording", command=self.start_recording).grid(row=6, column=0, columnspan=2, pady=5)
-
-        # Label to display phrases
-        self.phrase_label = tk.Label(self.master, text="", wraplength=400)
-        self.phrase_label.grid(row=7, column=0, columnspan=2, pady=10)
-
-        # Record button
-        self.record_button = tk.Button(self.master, text="Record", state='disabled', command=self.record_phrase)
-        self.record_button.grid(row=8, column=0, columnspan=2)
-
-    def select_device(self):
-        # Use backend function to list and select devices
-        devices = bk.sd.query_devices()
-        self.device_list = [device for device in devices if device['max_input_channels'] > 0]
-
-        # Create a new window for device selection
-        device_window = tk.Toplevel(self.master)
-        device_window.title("Select Input Device")
-
-        tk.Label(device_window, text="Available Input Devices:").pack()
-
-        # Variable to hold selected device index
-        self.selected_device = tk.IntVar(value=-1)
-
-        # List available devices with radio buttons
-        for idx, device in enumerate(self.device_list):
-            device_name = device['name']
-            tk.Radiobutton(
-                device_window,
-                text=f"{idx}: {device_name}",
-                variable=self.selected_device,
-                value=idx
-            ).pack(anchor='w')
-
-        tk.Button(device_window, text="Confirm", command=device_window.destroy).pack(pady=5)
-
+    def select_input_device(self):
+        device_index = self.combo.currentIndex()
+        print(f"Selected input device: {sd.query_devices(device_index)['name']}")
+        return device_index
+class phraseWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Phrase")
+        self.setFixedSize(QSize(400, 200))
+        self.layout = QVBoxLayout()
+        self.phrases = QLabel(bk.get_phrase())
+        self.layout.addWidget(self.phrases)
+        self.recordButton = QPushButton("Record", self)
+        self.layout.addWidget(self.recordButton)
+        self.recordButton.clicked.connect(bk.start_recording)
+        self.widget = QWidget()
+        self.widget.setLayout(self.layout)
+        self.setCentralWidget(self.widget)
+class metadataWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Metadata")
+        self.setFixedSize(QSize(400, 200))
+        self.layout = QVBoxLayout()
+        self.severity = QLineEdit()
+        self.type_ = QLineEdit()
+        self.condition = QLineEdit() 
+        self.severity.setPlaceholderText("Severity")
+        self.type_.setPlaceholderText("Type")
+        self.condition.setPlaceholderText("Condition")
+        self.saveButton = QPushButton("Save", self)
+        self.saveButton.setGeometry(100, 150, 200, 50)
+        self.saveButton.clicked.connect(self.save_metadata) 
+        self.setDatasetDirButton = QPushButton("Set Dataset Directory", self)
+        self.dirDialog = QFileDialog()
+        self.DataDir = ""
+        self.csvDir = ""
+        self.setcsvDirButton = QPushButton("Set CSV Directory", self)
+        self.setcsvDialog = QFileDialog() 
+        self.setDatasetDirButton.clicked.connect(self.set_dataset_dir)
+        self.setcsvDirButton.clicked.connect(self.set_csv_dir)
+        self.layout.addWidget(self.saveButton)
+        self.layout.addWidget(self.severity)
+        self.layout.addWidget(self.type_)
+        self.layout.addWidget(self.condition)
+        self.layout.addWidget(self.setDatasetDirButton)
+        self.layout.addWidget(self.setcsvDirButton)
+        self.widget = QWidget()
+        self.widget.setLayout(self.layout)
+        self.setCentralWidget(self.widget)
+    def save_metadata(self):
+        self.severity = self.severity.text()
+        self.type_ = self.type_.text()
+        self.condition = self.condition.text()
+        self.close()
+    
+    def set_dataset_dir(self):
+        self.DataDir = self.dirDialog.getExistingDirectory(self, "Select Directory")
+        print(self.DataDir)
+        self.close()
+    def set_csv_dir(self):
+        self.csvDir = self.setcsvDialog.getExistingDirectory(self, "Select Directory")
+        print(self.csvDir)
+        self.close()
+    
+ 
+class settingsWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Settings")
+        self.setFixedSize(QSize(400, 200))
+        self.metadata = metadataWindow() 
+        self.audiosettings = audioWindow()
+        self.deviceId = self.audiosettings.deviceIndex 
+        self.severity = self.metadata.severity
+        self.type_ = self.metadata.type_
+        self.condition =  self.metadata.condition
+        listButton = QPushButton("Input Devices", self)
+        listButton.setGeometry(100, 100, 200, 50) 
+        listButton.clicked.connect(self.audiosettings.show)
+        setmetadataButton = QPushButton("Set Metadata", self)
+        setmetadataButton.setGeometry(100, 150, 200, 50)
+        setmetadataButton.clicked.connect(self.metadata.show) 
+        self.csvPath = self.metadata.csvDir
+        self.datasetPath = self.metadata.DataDir
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Dysscribe")
+        self.setFixedSize(QSize(400, 200))
+        recButton = QPushButton("Start Recording", self)
+        recButton.setGeometry(100, 100, 200, 50)
+        recButton.clicked.connect(self.start_recording)
+        settingsButton = QPushButton("Settings", self)
+        settingsButton.setGeometry(100, 150, 200, 50)
+        settingsButton.clicked.connect(self.open_settings)
+        self.settings = settingsWindow()
+        self.type_ = self.settings.type_
+        self.severity = self.settings.severity
+        self.condition = self.settings.condition
+        self.deviceId = self.settings.deviceId
+        self.speaker_id = bk.get_next_id("dataset.csv", "dataset")
+        self.csv_path = self.settings.csvPath
+        self.dataset_path = self.settings.datasetPath
     def start_recording(self):
-        if not self.severity.get() or not self.type_.get() or not self.condition.get():
-            messagebox.showwarning("Input Required", "Please select severity, type, and condition.")
-            return
+        # Get speaker ID, severity, type, condit
+        # ion 
 
-        # Get selected phrases from the listbox
-        selected_indices = self.phrases_listbox.curselection()
-        if not selected_indices:
-            messagebox.showwarning("Input Required", "Please select at least one phrase.")
-            return
-        self.selected_phrases = [self.phrases_listbox.get(i) for i in selected_indices]
+        self.phrase = phraseWindow()
+        self.phrase.show()
+         
+        
+    def open_settings(self):
+        self.settings = settingsWindow()
+        self.settings.show()
 
-        # Check if a device has been selected
-        if not hasattr(self, 'selected_device') or self.selected_device.get() == -1:
-            messagebox.showwarning("Device Selection", "Please select an input device.")
-            return
 
-        # Get speaker ID
-        self.speakerID = bk.get_next_id(self.csv_path, self.recsdir)
-        self.speakerdir = os.path.join(self.recsdir, str(self.speakerID))
-        os.makedirs(self.speakerdir, exist_ok=True)
+app = QApplication(sys.argv)
 
-        # Write CSV header if file doesn't exist
-        if not os.path.isfile(self.csv_path):
-            with open(self.csv_path, 'w', newline='') as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=bk.FIELDNAMES)
-                writer.writeheader()
+window = MainWindow()
+window.show()
 
-        # Initialize phrase index and take
-        self.phrase_index = 0
-        self.take = 1
-
-        # Update the phrase display and enable the record button
-        self.update_phrase_display()
-        self.record_button.config(state='normal')
-
-    def update_phrase_display(self):
-        if self.phrase_index < len(self.selected_phrases):
-            phrase = self.selected_phrases[self.phrase_index]
-            self.phrase_label.config(text=f"Phrase {self.phrase_index + 1}, Take {self.take}:\n\"{phrase}\"")
-        else:
-            messagebox.showinfo("Recording Complete", "All phrases have been recorded.")
-            self.record_button.config(state='disabled')
-
-    def record_phrase(self):
-        phrase = self.selected_phrases[self.phrase_index]
-        filename = f"phrase_{self.phrase_index + 1}_take_{self.take}.wav"
-        filepath = os.path.join(self.speakerdir, filename)
-
-        # Get the selected device index
-        device_idx = self.selected_device.get()
-        device_info = self.device_list[device_idx]
-        device_index = device_info['index']
-
-        # Record audio using backend function
-        bk.record_audio(filepath, duration=3, sample_rate=44100, device=device_index)
-
-        # Write metadata to CSV
-        csvpath = os.path.join('recordings', str(self.speakerID), filename)
-        with open(self.csv_path, 'a', newline='') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=bk.FIELDNAMES)
-            writer.writerow({
-                'path': csvpath,
-                'speaker_id': self.speakerID,
-                'severity': self.severity.get(),
-                'type': self.type_.get(),
-                'condition': self.condition.get(),
-                'phrase': phrase.strip()
-            })
-
-        # Update take and phrase index
-        if self.take < 3:
-            self.take += 1
-        else:
-            self.take = 1
-            self.phrase_index += 1
-        self.update_phrase_display()
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = RecordingApp(root)
-    root.mainloop()
+app.exec()

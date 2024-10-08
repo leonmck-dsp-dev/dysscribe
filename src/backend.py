@@ -4,10 +4,24 @@ import os
 import csv
 import sounddevice as sd
 import soundfile as sf
+import ipywidgets as widgets
 
 # Define fieldnames for the CSV
 FIELDNAMES = ['path', 'speaker_id', 'severity', 'type', 'condition', 'phrase']
+# sample phrases - TODO: Add The csv phrases list here  
 
+# bool to start recording each phrase take
+recording = False
+
+# Function to connect bool to button click
+def start_recording(b):
+    global recording
+    recording = True
+phrases = ["Hello, how are you?", "What is your name?", "Where are you from?", "How old are you?", "What is your favorite color?"]
+
+def get_phrase():
+    for phrase in phrases:
+        return phrase.strip()
 def list_input_devices():
     print("Available input devices:")
     devices = sd.query_devices()
@@ -15,11 +29,10 @@ def list_input_devices():
         if device['max_input_channels'] > 0:
             print(f"{idx}: {device['name']}")
 
-def select_input_device():
+def select_input_device(device_input):
     list_input_devices()
     while True:
         try:
-            device_input = input("Enter the index of the input device you want to use: ")
             device_index = int(device_input)
             device = sd.query_devices(device_index)
             if device['max_input_channels'] > 0:
@@ -63,10 +76,17 @@ def get_next_id(csv_path, recsdir):
 
 def record_audio(filename, duration=3, sample_rate=44100, channels=1, device=None):
     print("Recording...")
+    devices = sd.query_devices()
+    for idx, dev in enumerate(devices):
+        print(f"{idx}: {dev['name']}")
+    max_input_channels = devices[device]['max_input_channels']
+    if channels > max_input_channels:
+        print(f"Reducing number of input channels from {channels} to {max_input_channels}")
+        channels = max_input_channels
     audio_data = sd.rec(
         int(duration * sample_rate),
         samplerate=sample_rate,
-        channels=channels,
+        channels=max_input_channels,
         dtype='int16',
         device=device
     )
@@ -74,31 +94,15 @@ def record_audio(filename, duration=3, sample_rate=44100, channels=1, device=Non
     sf.write(filename, audio_data, sample_rate)
     print("Recording complete.")
 
-def run():
-    phrases = [
-        "Hello, my name is John.",
-        "I am a student at the University of Toronto.",
-        "I am studying computer science.",
-        "I am in my fourth year.",
-        "I am from Toronto.",
-        "I am interested in machine learning.",
-        "I am looking for a job in software development.",
-        "I am excited to graduate.",
-        "I am looking forward to the future.",
-        "I am happy to be here."
-    ]
+def run(severity, type_, condition , device):
     base_path = "data"
     recsdir = os.path.join(base_path, 'recordings')
     os.makedirs(base_path, exist_ok=True)
     os.makedirs(recsdir, exist_ok=True)
 
-    severity = input("Enter the severity: ")
-    type_ = input("Enter the type: ")
-    condition = input("Enter the condition: ")
-
-    # Select the input device
-    device_index = select_input_device()
-
+    severity = severity
+    type_ = type_
+    condition = condition 
     csv_path = os.path.join(base_path, 'metadata.csv')
     csv_exists = os.path.isfile(csv_path)
 
@@ -114,15 +118,13 @@ def run():
 
     for phrase in phrases:
         for take in range(1, 4):
-            print(f"\nRecording {take} for phrase: {phrase.strip()}")
-            # Display the phrase to the user
-            print("Please read the following phrase:")
-            print(f"\"{phrase.strip()}\"")
-            input("Press Enter when you're ready to start recording...")
-            # Record audio
+            # reset recording bool each take
+            recording = False
+            if recording:
+                continue             
             filename = f"phrase_{phrases.index(phrase)+1}_take_{take}.wav"
             filepath = os.path.join(speakerdir, filename)
-            record_audio(filepath, duration=3, sample_rate=44100, device=device_index)
+            record_audio(filepath, duration=3, sample_rate=44100, device=device)
             # Write metadata to CSV
             csvpath = os.path.join('recordings', str(speakerID), filename)
             with open(csv_path, 'a', newline='') as csvfile:
