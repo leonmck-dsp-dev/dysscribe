@@ -31,7 +31,7 @@ class audioWindow(QMainWindow):
         self.widget.setLayout(self.layout)
         self.setCentralWidget(self.widget)
         self.deviceIndex = self.select_input_device()  # Moved this line to after self.combo is defined
-
+        self.combo.setCurrentIndex(self.deviceIndex)
     def populate_input_devices(self):
         devices = sd.query_devices()
         input_devices = [f"{idx}: {device['name']}" for idx, device in enumerate(devices) if device['max_input_channels'] > 0]
@@ -39,22 +39,44 @@ class audioWindow(QMainWindow):
 
     def select_input_device(self):
         device_index = self.combo.currentIndex()
-        print(f"Selected input device: {sd.query_devices(device_index)['name']}")
+        print(f"Selected input device: {bk.select_input_device(device_index)}")
         return device_index
 class phraseWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.take_count = 0
+        self.phrase_index = 0
         self.setWindowTitle("Phrase")
         self.setFixedSize(QSize(400, 200))
-        self.layout = QVBoxLayout()
-        self.phrases = QLabel(bk.get_phrase())
+        self.layout = QVBoxLayout() 
+        self.phrases = QLabel(self.update_phrase())
         self.layout.addWidget(self.phrases)
         self.recordButton = QPushButton("Record", self)
         self.layout.addWidget(self.recordButton)
-        self.recordButton.clicked.connect(bk.start_recording)
+        self.recordButton.clicked.connect(self.record)
         self.widget = QWidget()
         self.widget.setLayout(self.layout)
         self.setCentralWidget(self.widget)
+        self.main = MainWindow()
+        self.severeity = self.main.severity
+        self.type_ = self.main.type_
+        self.condition = self.main.condition
+        self.deviceId = self.main.deviceId
+        
+    
+    def record(self):
+        if self.take_count < 3:
+            bk.recording = True
+            bk.run(self.severeity, self.type_, self.condition, self.deviceId)
+            self.take_count += 1
+        else:
+            self.update_phrase()
+    def update_phrase(self):
+        try:
+            next_phrase = next(bk.get_phrase())
+            self.phrases.setText(next_phrase)
+        except StopIteration:
+            pass  # Handle the end of the phrases here, if necessary
 class metadataWindow(QMainWindow):
     def __init__(self):
         super().__init__()
