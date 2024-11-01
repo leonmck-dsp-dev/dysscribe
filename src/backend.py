@@ -1,4 +1,4 @@
-# backend.py
+# backen.py
 
 import os
 import csv
@@ -11,20 +11,42 @@ import keyboard
 # Define fieldnames for the CSV
 FIELDNAMES = ['path', 'speaker_id', 'severity', 'type', 'condition', 'phrase']
 # sample phrases - TODO: Add The csv phrases list here  
-PhrasecsvPath = ""
-DataCsvPath = ""
-base_path = ""
-def get_phrase(csv):
-    with open(csv, 'r', newline='') as file:
-        reader = csv.reader(file)
-        for row in reader:
-            for phrase in row:  # Yield each phrase in a row
-                yield phrase
+PhrasecsvPath = 'data/phrases.csv'
+DataCsvPath = 'metadata.csv'
+base_path = 'data'
 
-sd.default.device = 'MacBook Pro Microphone'    # Default device to record from
+status = "waiting" 
+recsdir = os.path.join(base_path, 'recordings')
+def get_phrase(csv_path):
+    try:
+        with open(csv_path, 'r', newline='', encoding='latin-1') as file:
+            reader = csv.reader(file)
+            for row in reader:
+                for phrase in row:  # Yield each phrase in a row
+                    yield phrase
+    except FileNotFoundError:
+        print(f"Error: The file '{csv_path}' was not found.")
+    except IOError:
+        print(f"Error: An I/O error occurred while trying to read the file '{csv_path}'.")
+    except csv.Error as e:
+        print(f"Error: A CSV error occurred: {e}")
 
-    
-def list_input_devices():
+sd.default.device = 'MacBook Pro Microphone'    # Default device to record from 
+def phraseCsvRelcsvPath(csvPath): 
+    phrases = []
+    try:
+        with open(csvPath, 'r', newline='', encoding='latin-1') as file:
+            reader = csv.reader(file)
+            for row in reader:
+                phrases.extend(row)
+    except FileNotFoundError:
+        print(f"Error: The file '{csvPath}' was not found.")
+    except IOError:
+        print(f"Error: An I/O error occurred while trying to read the file '{csvPath}'.")
+    except csv.Error as e:
+        print(f"Error: A CSV error occurred: {e}")
+    return phrases
+def lisinput_devices():
     print("Available input devices:")
     devices = sd.query_devices()
     for idx, device in enumerate(devices):
@@ -122,18 +144,10 @@ def record_audio(filename, duration=30, sample_rate=44100, channels=1, device=sd
     sd.wait()
     sf.write(filename, audio_data, sample_rate)
     print("Recording complete.")
-
-def listen_for_space():
-    global stop_recording
-    while True:
-        if keyboard.is_pressed('space'):
-            if stop_recording:
-                print("Starting recording...")
-            else:
-                print("Stopping recording...")
-            stop_recording = not stop_recording
-            time.sleep(0.5)  # Debounce the space bar
+ 
 def run(severity, type_, condition , device):
+    global status
+    phrases = phraseCsvRelcsvPath(PhrasecsvPath)
     recsdir = os.path.join(base_path, 'recordings')
     os.makedirs(base_path, exist_ok=True)
     os.makedirs(recsdir, exist_ok=True)
@@ -157,15 +171,15 @@ def run(severity, type_, condition , device):
                 
     for phrase in phrases:
         for take in range(1, 4):
-            filename = f"phrase_{phrases.index(phrase)+1}_take_{take}.wav"
+            filename = f"phrase_-=0{phrases.index(phrase)+1}_take_{take}.wav"
             filepath = os.path.join(speakerdir, filename)
-
-            # Start recording in a separate thread
-            record_thread = threading.Thread(target=record_audio, args=(filepath, 44100, 1,device))
-            record_thread.start()
-            record_thread.join()
-        
-            # Write metadata to CSV
+            # wait for space to start recording 
+            recordthread = threading.Thread(target=record_audio, args=(filepath, 3, 44100, 1, device))
+            
+            recordthread.start()
+            # Start recording in a separate thread    
+            status = "recording stopped"
+            # # Write metadata to CSV
             csvpath = os.path.join('recordings', str(speakerID), filename)
             with open(csv_path, 'a', newline='') as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=FIELDNAMES)

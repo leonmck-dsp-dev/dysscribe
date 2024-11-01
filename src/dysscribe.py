@@ -48,12 +48,13 @@ class phraseWindow(QMainWindow):
         self.phrase_index = 0
         self.setWindowTitle("Phrase")
         self.setFixedSize(QSize(400, 200))
+        self.csv_path = bk.PhrasecsvPath
+        print(self.csv_path)
         self.layout = QVBoxLayout() 
-        self.phrases = QLabel(self.update_phrase())
-        self.layout.addWidget(self.phrases)
-        self.recordButton = QPushButton("Record", self)
-        self.layout.addWidget(self.recordButton)
-        self.recordButton.clicked.connect(self.record)
+        self.phrases = QLabel()
+        self.layout.addWidget(self.phrases) 
+        self.status = QLabel()
+        self.layout.addWidget(self.status)
         self.widget = QWidget()
         self.widget.setLayout(self.layout)
         self.setCentralWidget(self.widget)
@@ -62,18 +63,14 @@ class phraseWindow(QMainWindow):
         self.type_ = self.main.type_
         self.condition = self.main.condition
         self.deviceId = self.main.deviceId
-        
-    
-    def record(self):
-        if self.take_count < 3:
-            bk.recording = True
-            bk.run(self.severeity, self.type_, self.condition, self.deviceId)
-            self.take_count += 1
-        else:
-            self.update_phrase()
+        self.update_phrase()
+        self.record()
+    def record(self): 
+            bk.run(self.severeity, self.type_, self.condition, self.deviceId) 
+            self.status.setText(bk.status)
     def update_phrase(self):
         try:
-            next_phrase = next(bk.get_phrase())
+            next_phrase = next(bk.get_phrase(self.csv_path))
             self.phrases.setText(next_phrase)
         except StopIteration:
             pass  # Handle the end of the phrases here, if necessary
@@ -91,21 +88,11 @@ class metadataWindow(QMainWindow):
         self.condition.setPlaceholderText("Condition")
         self.saveButton = QPushButton("Save", self)
         self.saveButton.setGeometry(100, 150, 200, 50)
-        self.saveButton.clicked.connect(self.save_metadata) 
-        self.setDatasetDirButton = QPushButton("Set Dataset Directory", self)
-        self.dirDialog = QFileDialog()
-        self.DataDir = ""
-        self.csvDir = ""
-        self.setcsvDirButton = QPushButton("Set CSV Directory", self)
-        self.setcsvDialog = QFileDialog() 
-        self.setDatasetDirButton.clicked.connect(self.set_dataset_dir)
-        self.setcsvDirButton.clicked.connect(self.set_csv_dir)
+        self.saveButton.clicked.connect(self.save_metadata)  
         self.layout.addWidget(self.saveButton)
         self.layout.addWidget(self.severity)
         self.layout.addWidget(self.type_)
-        self.layout.addWidget(self.condition)
-        self.layout.addWidget(self.setDatasetDirButton)
-        self.layout.addWidget(self.setcsvDirButton)
+        self.layout.addWidget(self.condition) 
         self.widget = QWidget()
         self.widget.setLayout(self.layout)
         self.setCentralWidget(self.widget)
@@ -114,17 +101,8 @@ class metadataWindow(QMainWindow):
         self.type_ = self.type_.text()
         self.condition = self.condition.text()
         self.close()
-    
-    def set_dataset_dir(self):
-        self.DataDir = self.dirDialog.getExistingDirectory(self, "Select Directory")
-        print(self.DataDir)
-        self.close()
-    def set_csv_dir(self):
-        self.csvDir = self.setcsvDialog.getExistingDirectory(self, "Select Directory")
-        print(self.csvDir)
-        self.close()
-    
- 
+     
+            
 class settingsWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -141,9 +119,7 @@ class settingsWindow(QMainWindow):
         listButton.clicked.connect(self.audiosettings.show)
         setmetadataButton = QPushButton("Set Metadata", self)
         setmetadataButton.setGeometry(100, 150, 200, 50)
-        setmetadataButton.clicked.connect(self.metadata.show) 
-        self.csvPath = self.metadata.csvDir
-        self.datasetPath = self.metadata.DataDir
+        setmetadataButton.clicked.connect(self.metadata.show)
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -160,9 +136,7 @@ class MainWindow(QMainWindow):
         self.severity = self.settings.severity
         self.condition = self.settings.condition
         self.deviceId = self.settings.deviceId
-        self.speaker_id = bk.get_next_id("dataset.csv", "dataset")
-        self.csv_path = self.settings.csvPath
-        self.dataset_path = self.settings.datasetPath
+        self.speaker_id = bk.get_next_id(bk.DataCsvPath, bk.recsdir)
     def start_recording(self):
         # Get speaker ID, severity, type, condit
         # ion 
