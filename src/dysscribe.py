@@ -2,7 +2,7 @@
 
 import backend as bk  # Import your backend module
 import sounddevice as sd
-
+import pyautogui
 import sys
 
 from PyQt6.QtCore import QSize, Qt

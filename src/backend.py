@@ -127,7 +127,9 @@ def get_next_id(csv_path, recsdir):
         speakerID += 1
     return speakerID 
 def record_audio(filename, duration=30, sample_rate=44100, channels=1, device=sd.default.device):
-    print("Recording...")
+    print("press space to start recording")
+    keyboard.add_hotkey("space", lambda: print("Recording..."))
+    
     devices = select_input_device(device) 
     # Extract the input device index
     if isinstance(device, sd._InputOutputPair):
