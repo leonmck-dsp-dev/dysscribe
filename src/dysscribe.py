@@ -7,6 +7,8 @@ import sys
 
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QLineEdit, QVBoxLayout, QWidget, QFileDialog, QComboBox, QLabel 
+import importlib
+importlib.reload(bk)  # Reload the backend module to ensure changes are reflected
 
 
 #  reqiurements of the app
@@ -31,7 +33,7 @@ class audioWindow(QMainWindow):
         self.widget.setLayout(self.layout)
         self.setCentralWidget(self.widget)
         self.deviceIndex = self.select_input_device()  # Moved this line to after self.combo is defined
-        self.combo.setCurrentIndex(self.deviceIndex)
+        self.combo.setCurrentIndex(1)
     def populate_input_devices(self):
         devices = sd.query_devices()
         input_devices = [f"{idx}: {device['name']}" for idx, device in enumerate(devices) if device['max_input_channels'] > 0]
@@ -48,11 +50,9 @@ class phraseWindow(QMainWindow):
         self.phrase_index = 0
         self.setWindowTitle("Phrase")
         self.setFixedSize(QSize(400, 200))
-        self.csv_path = bk.PhrasecsvPath
-        print(self.csv_path)
-        self.layout = QVBoxLayout() 
-        self.phrases = QLabel()
-        self.layout.addWidget(self.phrases) 
+        self.layout = QVBoxLayout()
+        self.phrases = QLabel(bk.get_phrase())
+        self.layout.addWidget(self.phrases)
         self.status = QLabel()
         self.layout.addWidget(self.status)
         self.widget = QWidget()
@@ -63,17 +63,20 @@ class phraseWindow(QMainWindow):
         self.type_ = self.main.type_
         self.condition = self.main.condition
         self.deviceId = self.main.deviceId
-        self.update_phrase()
+        # self.update_phrase()
         self.record()
     def record(self): 
-            bk.run(self.severeity, self.type_, self.condition, self.deviceId) 
+            print(self.severeity, self.type_, self.condition, self.deviceId)
+            # bk.run(self.severeity, self.type_, self.condition, self.deviceId) 
+            bk.run("moderate", "ataxic", " cp",  2)
+
             self.status.setText(bk.status)
-    def update_phrase(self):
-        try:
-            next_phrase = next(bk.get_phrase(self.csv_path))
-            self.phrases.setText(next_phrase)
-        except StopIteration:
-            pass  # Handle the end of the phrases here, if necessary
+    # def update_phrase(self):
+    #     try:
+    #         next_phrase = next(bk.get_phrase(self.csv_path))
+    #         self.phrases.setText(next_phrase)
+    #     except StopIteration:
+    #         pass  # Handle the end of the phrases here, if necessary
 class metadataWindow(QMainWindow):
     def __init__(self):
         super().__init__()
