@@ -68,6 +68,7 @@ class phraseWindow(QMainWindow):
     def record(self): 
             print(self.severeity, self.type_, self.condition, self.deviceId)
             # bk.run(self.severeity, self.type_, self.condition, self.deviceId) 
+
             bk.run("moderate", "ataxic", " cp",  2)
 
             self.status.setText(bk.status)
